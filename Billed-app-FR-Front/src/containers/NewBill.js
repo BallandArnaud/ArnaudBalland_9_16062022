@@ -20,6 +20,16 @@ export default class NewBill {
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
+    const fileType = file.type
+    const $fileError = document.getElementById('file-error')
+    if (fileType !== "image/jpeg" && fileType !== "image/png") {
+      $fileError.style.display = "block"
+      $fileError.style.color = "red"
+      $fileError.innerHTML = "Veuillez choisir uniquement un fichier au format .jpg, .jpeg ou .png"
+      return
+    } else {
+      $fileError.style.display = "none"
+    }
     const formData = new FormData()
     const email = JSON.parse(localStorage.getItem("user")).email
     formData.append('file', file)
