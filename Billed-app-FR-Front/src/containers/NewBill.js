@@ -21,14 +21,17 @@ export default class NewBill {
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
     const fileType = file.type
-    const $fileError = document.getElementById('file-error')
+    const $fileError = this.document.getElementById('file-error')
+    const $submitBtn = this.document.getElementById('btn-send-bill')
     if (fileType !== "image/jpeg" && fileType !== "image/png") {
       $fileError.style.display = "block"
       $fileError.style.color = "red"
       $fileError.innerHTML = "Veuillez choisir uniquement un fichier au format .jpg, .jpeg ou .png"
+      $submitBtn.disabled = true
       return
     } else {
       $fileError.style.display = "none"
+      $submitBtn.disabled = false
     }
     const formData = new FormData()
     const email = JSON.parse(localStorage.getItem("user")).email
