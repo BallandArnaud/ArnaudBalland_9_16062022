@@ -5,38 +5,121 @@
  import { screen, fireEvent } from "@testing-library/dom"
  import NewBillUI from "../views/NewBillUI.js"
  import NewBill from "../containers/NewBill.js"
+ import { ROUTES } from "../constants/routes"
  import { localStorageMock } from "../__mocks__/localStorage.js"
- 
+ import store from "../__mocks__/store.js"
  
  describe("Given I am connected as an employee", () => {
    describe("When I am on NewBill Page", () => {
-     test("Then I fill a txt file in the form", () => {
-       const html = NewBillUI()
+
+    let onNavigate;
+
+    beforeEach(() => {
+      const html = NewBillUI()
        document.body.innerHTML = html
-       //to-do write assertion
        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
-      window.localStorage.setItem('user', JSON.stringify({
+        window.localStorage.setItem('user', JSON.stringify({
         type: 'Employee'
       }))
-      const onNavigate = (pathname) => {
+      onNavigate = (pathname) => {
         document.body.innerHTML = ROUTES({ pathname })
       }
-       const file = new File(["foo"], "foo.txt", {
-         type: "text/plain",
-       });
-       const inputFile = screen.getByTestId("file")
-       const fileError = screen.getByTestId("file-error")
-       const newbill = new NewBill({document, onNavigate, store: null, localStorage: window.localStorage})
-       fireEvent.change(inputFile, {target: {files : [file]}})
-       const e = {
+    })
+
+     test("Then I fill a txt file in the form, an error message should appear", () => {
+      const file = new File(["foo"], "foo.txt", {
+        type: "text/plain",
+      });
+      const inputFile = screen.getByTestId("file")
+      const fileError = screen.getByTestId("file-error")
+      const btnSubmit = screen.getByTestId("btn-send-bill")
+      const newBill = new NewBill({document, onNavigate, store: store, localStorage: window.localStorage})
+      fireEvent.change(inputFile, {target: {files : [file]}})
+      const e = {
         preventDefault() {},
         target: {
           value: "C:\\fakepath\\foo.txt"
         }
       }
-       newbill.handleChangeFile(e)
-       console.log(inputFile)
-       expect(fileError.textContent).toBe("Veuillez choisir uniquement un fichier au format .jpg, .jpeg ou .png")
+      newBill.handleChangeFile(e)
+      expect(fileError.textContent).toBe("Veuillez choisir uniquement un fichier au format .jpg, .jpeg ou .png")
+      expect(btnSubmit.disabled).toBe(true)
      })
+
+     test("Then I fill a image file in the form, no error message should appear", () => {
+      const file = new File(["foo"], "foo.jpg", {
+        type: "image/jpeg",
+      });
+      const inputFile = screen.getByTestId("file")
+      const fileError = screen.getByTestId("file-error")
+      const btnSubmit = screen.getByTestId("btn-send-bill")
+      const newBill = new NewBill({document, onNavigate, store: store, localStorage: window.localStorage})
+      fireEvent.change(inputFile, {target: {files : [file]}})
+      const e = {
+       preventDefault() {},
+       target: {
+         value: "C:\\fakepath\\foo.jpg"
+       }
+      }
+      newBill.handleChangeFile(e)
+      expect(fileError.textContent).toBe("")
+      expect(btnSubmit.disabled).toBe(false)
+    })
+
    })
+
+   describe('When I am on NewBill page, I filled in the form correctly and I clicked on submit button', () => {
+    test('Then Bills page should be rendered', () => {
+      const html = NewBillUI()
+      document.body.innerHTML = html
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+      const newBill = new NewBill({document, onNavigate, store: store, localStorage: window.localStorage})
+      const handleSubmit = jest.fn((e) => newBill.handleSubmit(e))
+      newBill.fileName = 'test.jpg'
+
+      const formNewBill = screen.getByTestId('form-new-bill')
+      formNewBill.addEventListener('submit', handleSubmit)
+
+      fireEvent.submit(formNewBill)
+
+      expect(handleSubmit).toHaveBeenCalled()
+      expect(screen.getByText('Mes notes de frais')).toBeTruthy()
+    })
+  })
  })
+
+ //Test intégration Post New Bill
+ describe("Given I am a user connected as Employee", () => {
+  describe("When I submit a new bill", () => {
+    test("Then a new bill should be Post with mock API POST", async () => {
+      document.body.innerHTML = NewBillUI()
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+      const newBill = new NewBill({document, onNavigate, store: store, localStorage: window.localStorage})
+      const mockedBills = newBill.store.bills()
+      const spyCreate = jest.spyOn(mockedBills, 'create')
+
+      const handleChangeFile = jest.fn((e) => newBill.handleChangeFile(e))
+      const fileInput = screen.getByTestId("file")
+      fileInput.addEventListener('change', handleChangeFile)
+
+      fireEvent.change(fileInput, {
+        target: {
+          files: [
+            new File(['test'], 'test.jpg', {
+              type: 'image/jpeg',
+            }),
+          ],
+        },
+      })
+      expect(spyCreate).toHaveBeenCalled()
+
+      await spyCreate()
+      expect(newBill.billId).toBe('1234')
+      expect(newBill.fileUrl).toBe('https://localhost:3456/images/test.jpg')
+    })
+  })
+})
