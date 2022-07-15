@@ -9,6 +9,8 @@
  import { localStorageMock } from "../__mocks__/localStorage.js"
  import store from "../__mocks__/store.js"
  
+ import router from "../app/Router.js";
+ 
  describe("Given I am connected as an employee", () => {
    describe("When I am on NewBill Page", () => {
 
@@ -120,6 +122,52 @@
       await spyCreate()
       expect(newBill.billId).toBe('1234')
       expect(newBill.fileUrl).toBe('https://localhost:3456/images/test.jpg')
+    })
+  })
+
+  describe("When an error occurs on API", () => {
+    beforeEach(() => {
+      jest.spyOn(store, "bills")
+      Object.defineProperty(
+          window,
+          'localStorage',
+          { value: localStorageMock }
+      )
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee',
+        email: "a@a"
+      }))
+      const root = document.createElement("div")
+      root.setAttribute("id", "root")
+      document.body.appendChild(root)
+      router()
+    })
+
+    test("posts bills from an API and fails with 400 message error", async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => {});
+      const newBill = new NewBill({document, onNavigate, store: store, localStorage: window.localStorage})
+      store.bills.mockImplementationOnce(() => {
+        return {
+          create() {
+            return Promise.reject("Erreur 400")
+          }
+        }
+      })
+      
+      const file = new File(["foo"], "foo.jpg", {
+        type: "image/jpeg",
+      });
+      const fileInput = screen.getByTestId("file")
+      fireEvent.change(fileInput, {target: {files : [file]}})
+
+      await newBill.handleChangeFile({
+        preventDefault() {},
+        target: {
+          value: "C:\\fakepath\\foo.jpg"
+        }
+      })
+
+      expect(console.error).toHaveBeenCalled()
     })
   })
 })
